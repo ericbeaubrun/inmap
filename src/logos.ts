@@ -1,3 +1,5 @@
+import type { AmenityKind, ConnectorKind, Shop } from './plan'
+
 /**
  * Logos des enseignes (fictives), dessinés sur le canvas.
  * Chaque logo = une forme + deux couleurs + un monogramme ou un pictogramme (tracé SVG 24×24).
@@ -38,6 +40,24 @@ export const ICONS = {
   cutlery: { fill: 'M6 2h1.4v6h1.2V2H10v6h1.2V2h1.4v7.5a2.6 2.6 0 0 1-2 2.5V22H8v-10a2.6 2.6 0 0 1-2-2.5zM18 2v20h-2.2v-8H14V8c0-3 1.5-5.5 4-6z' },
   glasses: { stroke: 'M2.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0M14.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0M9.5 12.5c1.5-1 3.5-1 5 0M2.5 12 4 7M21.5 12 20 7' },
   ball: { stroke: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 3c3.5 3 3.5 15 0 18M12 3c-3.5 3-3.5 15 0 18M3 12h18' },
+  dumbbell: { fill: 'M1.5 9.5h2v-2h3v9h-3v-2h-2zM22.5 9.5h-2v-2h-3v9h3v-2h2zM7.5 10.8h9v2.4h-9z' },
+  pin: { fill: 'M12 2a2.6 2.6 0 0 1 2.6 2.6c0 1.3-.9 2-.9 3.1 0 1.2 2.6 3.6 2.6 7.6 0 3.7-1.8 6.7-4.3 6.7s-4.3-3-4.3-6.7c0-4 2.6-6.4 2.6-7.6 0-1.1-.9-1.8-.9-3.1A2.6 2.6 0 0 1 12 2z' },
+  pizza: { fill: 'M12 2c4.2 0 7.8 1.5 10 3.6L12 22 2 5.6C4.2 3.5 7.8 2 12 2z' },
+  bowl: { fill: 'M2.5 11h19a9.5 9.5 0 0 1-19 0z', stroke: 'M9 8.5V3M13 8.5V2.5M17 8.5 20 3' },
+  mic: { fill: 'M9 3.5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0z', stroke: 'M5.5 10.5a6.5 6.5 0 0 0 13 0M12 17v4.5M8.5 21.5h7' },
+  // Services du centre
+  exit: { fill: 'M3 3h10v18H3z', stroke: 'M15.5 12h6M18.5 9l3 3-3 3' },
+  wc: {
+    fill: 'M7 2.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4zM5 8h4v7H8v6.5H6V15H5zM17 2.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4zM15 8h4l2 8h-2.5v5.5h-3V16H13z',
+    stroke: 'M12 3v18',
+  },
+  shield: { fill: 'M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z' },
+  heart: { fill: 'M12 21s-8.5-5.3-8.5-11.2A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 8.5 2.8C20.5 15.7 12 21 12 21z' },
+  bottle: { fill: 'M10 2h4v2.6l1.6 2.2V20a2 2 0 0 1-2 2h-3.2a2 2 0 0 1-2-2V6.8L10 4.6z' },
+  // Connecteurs entre niveaux
+  escalator: { stroke: 'M3 18h4l9-12h5' },
+  elevator: { fill: 'M12 3l5 6H7zM12 21l-5-6h10z' },
+  stairs: { stroke: 'M3 20h5v-5h5v-5h5V5h3' },
 } satisfies Record<string, { fill?: string; stroke?: string }>
 
 export const LOGOS: Record<string, Logo> = {
@@ -84,6 +104,93 @@ export const LOGOS: Record<string, Logo> = {
   'Animalerie Câline': { bg: '#f28c28', fg: '#fff', shape: 'circle', icon: 'paw' },
   'Atelier Cuir': { bg: '#7b4b2a', fg: '#f6e7cf', shape: 'square', text: 'AC', serif: true },
   'Point Relais': { bg: '#ffcc00', fg: '#16130f', shape: 'round', text: 'PR' },
+  'Épicerie Fine': { bg: '#3d5a40', fg: '#f6e7cf', shape: 'circle', text: 'EF', serif: true },
+  'Papeterie Plume': { bg: '#f7d6bf', fg: '#7a2e1a', shape: 'round', text: 'P', serif: true, italic: true },
+  'Vélo Ville': { bg: '#00a86b', fg: '#fff', shape: 'circle', text: 'VV' },
+  'Montres & Temps': { bg: '#22223b', fg: '#e0c068', shape: 'circle', text: 'M&T', serif: true },
+
+  // Niveau 1 · Loisirs & restauration
+  'Fitness Club': { bg: '#ff3366', fg: '#fff', shape: 'round', icon: 'dumbbell' },
+  'Bowling Strike': { bg: '#16130f', fg: '#fff', shape: 'circle', icon: 'pin' },
+  'Pizza Napoli': { bg: '#c1121f', fg: '#ffd8a8', shape: 'circle', icon: 'pizza' },
+  'Ramen Ichi': { bg: '#16130f', fg: '#f25f5c', shape: 'round', icon: 'bowl' },
+  'Crêperie Ty Breizh': { bg: '#1d3557', fg: '#fff', shape: 'circle', text: 'TB', serif: true },
+  'Énigma Escape': { bg: '#5f0f40', fg: '#fff', shape: 'diamond', text: '?', serif: true },
+  'Laser Arena': { bg: '#00b4d8', fg: '#16130f', shape: 'square', text: 'LA' },
+  'Karaoké Box': { bg: '#ff006e', fg: '#fff', shape: 'round', icon: 'mic' },
+  'Salon de Thé Rose': { bg: '#f4acb7', fg: '#6d1a36', shape: 'circle', text: 'R', serif: true, italic: true },
+  'Jus Frais': { bg: '#8ac926', fg: '#fff', shape: 'circle', text: 'JF' },
+  'Wok Express': { bg: '#e85d04', fg: '#fff', shape: 'round', text: 'WE' },
+  'Petits Explorateurs': { bg: '#ffbe0b', fg: '#16130f', shape: 'circle', icon: 'star' },
+  'Tacos Loco': { bg: '#2a9d8f', fg: '#fff', shape: 'square', text: 'TL' },
+  'Bar à Salades': { bg: '#52b788', fg: '#fff', shape: 'round', icon: 'leaf' },
+}
+
+/** Logo d'une boutique : catalogue, panneau « parking » pour les zones, sinon monogramme générique */
+export function logoFor(shop: Shop): Logo {
+  const logo = LOGOS[shop.name]
+  if (logo) return logo
+  if (shop.cat === 'parking') return { bg: '#1f5fbf', fg: '#fff', shape: 'square', text: shop.name.slice(-1) }
+  const initials = shop.name.split(/\s+/).filter(w => /^[A-ZÀ-Ý0-9]/.test(w)).map(w => w[0]).join('').slice(0, 2)
+  return { bg: '#1d1b16', fg: '#fff', shape: 'circle', text: initials }
+}
+
+export const CONNECTOR_LOGOS: Record<ConnectorKind, Logo> = {
+  escalator: { bg: '#1d1b16', fg: '#fff', shape: 'circle', icon: 'escalator' },
+  ascenseur: { bg: '#1d1b16', fg: '#fff', shape: 'round', icon: 'elevator' },
+  escalier: { bg: '#1d1b16', fg: '#fff', shape: 'circle', icon: 'stairs' },
+}
+
+// Pictogrammes des services, couleurs inspirées de la signalétique (vert = évacuation / secours)
+const EXIT_GREEN = '#0a8f4e'
+export const AMENITY_LOGOS: Record<AmenityKind, Logo> = {
+  sortie: { bg: EXIT_GREEN, fg: '#fff', shape: 'square', icon: 'exit' },
+  toilettes: { bg: '#1f5fbf', fg: '#fff', shape: 'round', icon: 'wc' },
+  securite: { bg: '#3a352c', fg: '#fff', shape: 'round', icon: 'shield' },
+  accueil: { bg: '#2a45e0', fg: '#fff', shape: 'circle', text: 'i', serif: true },
+  secours: { bg: EXIT_GREEN, fg: '#fff', shape: 'round', icon: 'heart' },
+  bebe: { bg: '#7fc8f8', fg: '#13315c', shape: 'round', icon: 'bottle' },
+  dab: { bg: '#1d1b16', fg: '#ffd23f', shape: 'round', text: '€' },
+  recharge: { bg: EXIT_GREEN, fg: '#fff', shape: 'circle', icon: 'bolt' },
+}
+
+/** Panneau « SORTIE » vert (pictogramme + texte), centré en (cx, cy), de hauteur h px. Renvoie sa largeur. */
+export function drawExitSign(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
+  ctx.font = `800 ${h * 0.5}px "Bricolage Grotesque", system-ui, sans-serif`
+  const w = h * 0.95 + ctx.measureText('SORTIE').width + h * 0.35
+  const x = cx - w / 2, y = cy - h / 2
+  ctx.fillStyle = EXIT_GREEN
+  ctx.strokeStyle = '#fff'
+  ctx.lineWidth = Math.max(1.5, h * 0.08)
+  ctx.beginPath()
+  ctx.roundRect(x, y, w, h, h * 0.18)
+  ctx.fill()
+  ctx.stroke()
+  drawLogo(ctx, AMENITY_LOGOS.sortie, x + h * 0.52, cy, h * 0.8)
+  ctx.fillStyle = '#fff'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('SORTIE', x + h * 0.95, cy + h * 0.03)
+  return w
+}
+
+/** Étiquette « bon plan » jaune à liseré encre ; (x, y) = coin d'ancrage selon `align` */
+export function drawPromoTag(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, h: number, align: 'left' | 'right' | 'center' = 'center') {
+  ctx.font = `800 ${h * 0.56}px "Bricolage Grotesque", system-ui, sans-serif`
+  const w = ctx.measureText(text).width + h * 0.7
+  const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2
+  ctx.fillStyle = '#ffd23f'
+  ctx.strokeStyle = '#1d1b16'
+  ctx.lineWidth = Math.max(1.5, h * 0.09)
+  ctx.beginPath()
+  ctx.roundRect(x0, y - h / 2, w, h, h / 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = '#1d1b16'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, x0 + w / 2, y + h * 0.04)
+  return w
 }
 
 const paths = new Map<string, Path2D>()

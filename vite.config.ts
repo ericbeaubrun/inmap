@@ -7,4 +7,6 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 export default defineConfig(({ mode }) => ({
   plugins: mode === 'http' ? [] : [basicSsl()],
   server: { host: true },
+  // Three.js (~580 ko) est isolé dans le chunk de la vue 3D, chargé à la demande
+  build: { chunkSizeWarningLimit: 700 },
 }))

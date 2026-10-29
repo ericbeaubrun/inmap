@@ -8,6 +8,7 @@
   </head>
   <body>
     <canvas id="map"></canvas>
+    <canvas id="map3d" hidden></canvas>
 
     <header id="banner" class="top">
       <div id="nav-icon" class="nav-icon"></div>
@@ -17,7 +18,37 @@
       </div>
     </header>
 
+    <div class="map-ctrl">
+      <div class="seg seg-view">
+        <button data-view="2d">2D</button>
+        <button data-view="3d" class="on">3D</button>
+      </div>
+      <button id="btn-pmr" class="pmr-toggle" aria-pressed="false" title="Itinéraires accessibles : ascenseurs uniquement">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="4" r="1.8" fill="currentColor" stroke="none" />
+          <path d="M11 7.5v6h5.5l2.5 5.5M11 10.5h5" />
+          <path d="M8 10.8a5.6 5.6 0 1 0 7.6 7.4" />
+        </svg>
+        PMR
+      </button>
+      <div id="floor-chip" class="floor-chip"></div>
+    </div>
+
+    <div id="promo-toast" class="toast" hidden>
+      <canvas width="88" height="88"></canvas>
+      <div class="toast-text">
+        <div class="toast-title"></div>
+        <div class="toast-sub"></div>
+      </div>
+      <span class="toast-go">Y aller →</span>
+    </div>
+
     <section class="panel">
+      <button id="btn-search" class="search-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m20 20-4.5-4.5" /></svg>
+        Boutique, toilettes, sortie…
+      </button>
+
       <div class="row">
         <div class="seg">
           <button data-mode="demo" class="on">Démo</button>
@@ -33,6 +64,15 @@
 
       <div id="stats" class="stats"></div>
       <div id="hint" class="hint"></div>
+    </section>
+
+    <section id="search" class="sheet" hidden>
+      <div class="sheet-head">
+        <input id="search-input" type="search" placeholder="Boutique, toilettes, sortie…" autocomplete="off" enterkeyhint="search" />
+        <button id="search-close" class="ghost">Fermer</button>
+      </div>
+      <div id="search-chips" class="chips"></div>
+      <ul id="search-results" class="results"></ul>
     </section>
 
     <script type="module" src="/src/main.ts"></script>

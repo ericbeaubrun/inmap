@@ -1,4 +1,10 @@
-import type { Plan, Pt } from './plan'
+import type { Pt } from './plan'
+
+/** Zone marchable d'un niveau (implémentée par `Floor`) */
+export interface Walkable {
+  walkable(x: number, y: number): boolean
+  snap(p: Pt): Pt
+}
 
 export const randn = () => {
   const u = 1 - Math.random(), v = Math.random()
@@ -21,7 +27,7 @@ export class ParticleFilter {
   private w: Float64Array
   private last: Pt = { x: 0, y: 0 }
 
-  constructor(private plan: Plan, readonly n = 600) {
+  constructor(private area: Walkable, readonly n = 600) {
     this.x = new Float64Array(n)
     this.y = new Float64Array(n)
     this.bias = new Float64Array(n)
@@ -29,13 +35,18 @@ export class ParticleFilter {
     this.w = new Float64Array(n)
   }
 
+  /** Changement de niveau : les hypothèses seront contraintes par les couloirs du nouveau niveau */
+  setArea(area: Walkable) {
+    this.area = area
+  }
+
   init(center: Pt, sigma: number, keepBias = false) {
-    const c = this.plan.snap(center)
+    const c = this.area.snap(center)
     for (let i = 0; i < this.n; i++) {
       let x = c.x, y = c.y
       for (let tries = 0; tries < 20; tries++) {
         const tx = c.x + randn() * sigma, ty = c.y + randn() * sigma
-        if (this.plan.walkable(tx, ty)) { x = tx; y = ty; break }
+        if (this.area.walkable(tx, ty)) { x = tx; y = ty; break }
       }
       this.x[i] = x
       this.y[i] = y
@@ -56,7 +67,7 @@ export class ParticleFilter {
       const l = length * this.scale[i] * (1 + randn() * 0.05)
       const nx = this.x[i] + Math.sin(h) * l
       const ny = this.y[i] - Math.cos(h) * l
-      if (this.plan.walkable(nx, ny) && this.plan.walkable((this.x[i] + nx) / 2, (this.y[i] + ny) / 2)) {
+      if (this.area.walkable(nx, ny) && this.area.walkable((this.x[i] + nx) / 2, (this.y[i] + ny) / 2)) {
         this.x[i] = nx
         this.y[i] = ny
       } else {
@@ -87,7 +98,7 @@ export class ParticleFilter {
       const u = r + i / n
       while (u > c && j < n - 1) c += this.w[++j]
       const jx = this.x[j] + randn() * 0.05, jy = this.y[j] + randn() * 0.05
-      const ok = this.plan.walkable(jx, jy)
+      const ok = this.area.walkable(jx, jy)
       x[i] = ok ? jx : this.x[j]
       y[i] = ok ? jy : this.y[j]
       bias[i] = this.bias[j] + randn() * 0.5 * DEG
@@ -108,7 +119,7 @@ export class ParticleFilter {
     }
     let v = 0
     for (let i = 0; i < this.n; i++) v += this.w[i] * ((this.x[i] - mx) ** 2 + (this.y[i] - my) ** 2)
-    const p = this.plan.snap({ x: mx, y: my })
+    const p = this.area.snap({ x: mx, y: my })
     return { ...p, accuracy: Math.sqrt(v), bias: Math.atan2(sb, cb) }
   }
 

@@ -1,20 +1,24 @@
-import type { Plan, Pt, Shop } from './plan'
-import { pointAt, type Route } from './route'
-import { drawLogo, LOGOS, type Logo } from './logos'
+import type { Destination, Plan, Pt, Shop } from './plan'
+import { pieces, type Route } from './route'
+import { AMENITY_LOGOS, CONNECTOR_LOGOS, drawExitSign, drawLogo, drawPromoTag, logoFor } from './logos'
 
 export interface Frame {
+  /** Niveau où se trouve le visiteur (celui affiché en 2D, mis en avant en 3D) */
+  floor: number
   particles: { x: Float64Array; y: Float64Array }
   estimate: Pt & { accuracy: number }
   /** Cap dans le repère du plan (radians), null si inconnu */
   heading: number | null
   /** Vraie position (mode démo uniquement) */
-  truth: Pt | null
+  truth: (Pt & { floor: number }) | null
   route: Route | null
   /** Distance déjà parcourue sur l'itinéraire */
   along: number
-  destination: { pt: Pt; shop?: Shop } | null
+  destination: Destination | null
   /** Vue d'ensemble du plan, sinon caméra centrée sur le point de position */
   overview: boolean
+  /** Mode PMR : itinéraires sans escalator ni escalier */
+  accessible: boolean
 }
 
 // Identité InMap (mêmes valeurs que style.css) : papier, encre chaude, cobalt, tomate
@@ -30,18 +34,14 @@ const DONE = '#bdb5a6'
 const FONT = '"Bricolage Grotesque", system-ui, sans-serif'
 
 const FOLLOW_SCALE = 5.5 // px par mètre en mode suivi
-// Zone utile entre le bandeau du haut et le panneau du bas
-const TOP = 110, BOTTOM = 230, PAD = 16
+// Zone utile entre le bandeau du haut et le panneau du bas (partagée avec la vue 3D)
+export const TOP = 110, BOTTOM = 230
+const PAD = 16
 
 const rgba = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16)
   return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
 }
-
-const fallbackLogo = (shop: Shop): Logo => ({
-  bg: INK, fg: '#fff', shape: 'circle',
-  text: shop.name.split(/\s+/).filter(w => /^[A-ZÀ-Ý0-9]/.test(w)).map(w => w[0]).join('').slice(0, 2),
-})
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D
@@ -49,9 +49,11 @@ export class Renderer {
   private h = 0
   private cam = { x: 0, y: 0, s: 1 }
   private ready = false
+  private promoTags: Map<string, string>
 
   constructor(private canvas: HTMLCanvasElement, private plan: Plan) {
     this.ctx = canvas.getContext('2d')!
+    this.promoTags = new Map(plan.data.promos.map(p => [p.shop, p.tag]))
     this.resize()
     window.addEventListener('resize', () => this.resize())
   }
@@ -94,13 +96,13 @@ export class Renderer {
     this.updateCamera(f)
     const { ctx } = this
     const s = this.cam.s
-    const d = this.plan.data
+    const d = this.plan.floors[f.floor].data
     ctx.fillStyle = SAND
     ctx.fillRect(0, 0, this.w, this.h)
 
-    // Couloirs
+    // Couloirs du niveau affiché
     ctx.strokeStyle = CORRIDOR
-    ctx.lineWidth = d.halfWidth * 2 * s
+    ctx.lineWidth = this.plan.data.halfWidth * 2 * s
     ctx.lineCap = 'square'
     for (const line of d.corridors) {
       ctx.beginPath()
@@ -114,7 +116,8 @@ export class Renderer {
     for (const shop of d.shops) this.drawShop(shop, dest?.shop === shop, fontSize)
 
     // Points de recalage QR / NFC
-    for (const a of Object.values(d.anchors)) {
+    for (const a of Object.values(this.plan.data.anchors)) {
+      if (a.floor !== f.floor) continue
       const x = this.sx(a.x), y = this.sy(a.y)
       ctx.fillStyle = INK
       ctx.fillRect(x - 6, y - 6, 12, 12)
@@ -122,19 +125,49 @@ export class Renderer {
       ctx.fillRect(x - 3, y - 3, 6, 6)
     }
 
-    // Itinéraire : partie restante en cobalt (liseré blanc façon signalétique), partie parcourue en gris
-    if (f.route && f.route.pts.length > 1) {
-      const split = pointAt(f.route, f.along)
-      const done = [...f.route.pts.slice(0, split.i), split.pt]
-      const todo = [split.pt, ...f.route.pts.slice(split.i)]
+    // Itinéraire au niveau affiché : partie restante en cobalt (liseré blanc façon signalétique), parcourue en gris
+    if (f.route) {
+      const { done, todo } = pieces(f.route, f.along, f.floor)
       const width = Math.max(5, s * 1.3)
-      this.polyline(done, DONE, width)
-      this.polyline(todo, '#fff', width + 4)
-      this.polyline(todo, COBALT, width)
+      for (const line of done) this.polyline(line, DONE, width)
+      for (const line of todo) this.polyline(line, '#fff', width + 4)
+      for (const line of todo) this.polyline(line, COBALT, width)
     }
 
-    // Repère de destination
-    if (dest) {
+    // Escalators et ascenseurs desservant ce niveau
+    const badge = Math.max(16, Math.min(26, s * 3.2))
+    for (const c of this.plan.data.connectors) {
+      if (!c.floors.includes(f.floor)) continue
+      // Mode PMR : seuls les ascenseurs restent utilisables, cerclés de cobalt
+      const usable = !f.accessible || c.kind === 'ascenseur'
+      ctx.globalAlpha = usable ? 1 : 0.3
+      if (f.accessible && usable) {
+        ctx.strokeStyle = COBALT
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.arc(this.sx(c.x), this.sy(c.y), badge * 0.75, 0, Math.PI * 2)
+        ctx.stroke()
+      }
+      drawLogo(ctx, CONNECTOR_LOGOS[c.kind], this.sx(c.x), this.sy(c.y), badge)
+      ctx.globalAlpha = 1
+    }
+
+    // Services : sorties (panneau vert), toilettes, sécurité, accueil…
+    for (const a of this.plan.data.amenities) {
+      if (a.floor !== f.floor) continue
+      if (a.kind === 'sortie') drawExitSign(ctx, this.sx(a.x), this.sy(a.y), badge)
+      else drawLogo(ctx, AMENITY_LOGOS[a.kind], this.sx(a.x), this.sy(a.y), badge * 0.9)
+    }
+
+    // Bons plans : étiquette jaune au coin des boutiques en promotion
+    const tagH = Math.max(14, Math.min(20, s * 2.6))
+    for (const shop of d.shops) {
+      const tag = this.promoTags.get(shop.name)
+      if (tag) drawPromoTag(ctx, tag, this.sx(shop.x + shop.w) - 2, this.sy(shop.y) + 2, tagH, 'right')
+    }
+
+    // Repère de destination (s'il est à ce niveau)
+    if (dest && dest.floor === f.floor) {
       const x = this.sx(dest.pt.x), y = this.sy(dest.pt.y)
       ctx.fillStyle = TOMATO
       ctx.strokeStyle = '#fff'
@@ -157,7 +190,7 @@ export class Renderer {
     for (let i = 0; i < x.length; i++) ctx.fillRect(this.sx(x[i]) - 1, this.sy(y[i]) - 1, 2, 2)
 
     // Vraie position (démo)
-    if (f.truth) {
+    if (f.truth && f.truth.floor === f.floor) {
       ctx.strokeStyle = rgba(INK, 0.45)
       ctx.lineWidth = 1.5
       ctx.beginPath()
@@ -210,7 +243,7 @@ export class Renderer {
     ctx.lineWidth = isDest ? 3 : 1
     ctx.strokeRect(x, y, w, h)
 
-    const logo = LOGOS[shop.name] ?? fallbackLogo(shop)
+    const logo = logoFor(shop)
     const size = Math.max(14, Math.min(46, Math.min(w, h) * 0.42))
     const withLabel = w > 40 && h > size + fontSize + 12
     if (w < size + 4 || h < size + 4) return
