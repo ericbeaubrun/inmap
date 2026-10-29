@@ -1,0 +1,22 @@
+{
+  "name": "inmap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Proof of concept : localisation intérieure temps réel en web app",
+  "scripts": {
+    "dev": "vite",
+    "dev:http": "vite --mode http --port 5174",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/dm-serif-display": "^5.3.0"
+  }
+}

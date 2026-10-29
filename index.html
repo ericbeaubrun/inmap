@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#e8e2d6" />
+    <title>InMap</title>
+  </head>
+  <body>
+    <canvas id="map"></canvas>
+
+    <header id="banner" class="top">
+      <div id="nav-icon" class="nav-icon"></div>
+      <div class="nav-text">
+        <div id="nav-main"></div>
+        <div id="nav-sub"></div>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="row">
+        <div class="seg">
+          <button data-mode="demo" class="on">Démo</button>
+          <button data-mode="real">Réel</button>
+        </div>
+        <button id="btn-view" class="ghost">Vue d'ensemble</button>
+      </div>
+
+      <div id="real-controls" class="row" hidden>
+        <button id="btn-sensors" class="primary">Activer le guidage</button>
+        <button id="btn-align" class="ghost" title="Tenez le téléphone à plat, orienté vers le haut du plan">Aligner ↑</button>
+      </div>
+
+      <div id="stats" class="stats"></div>
+      <div id="hint" class="hint"></div>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
