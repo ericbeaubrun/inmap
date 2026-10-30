@@ -1,5 +1,6 @@
 import type { Destination, Plan, Pt, Shop } from './plan'
 import { pieces, type Route } from './route'
+import { a11y } from './a11y'
 import { AMENITY_LOGOS, CONNECTOR_LOGOS, drawExitSign, drawLogo, drawPromoTag, logoFor } from './logos'
 
 export interface Frame {
@@ -19,23 +20,26 @@ export interface Frame {
   overview: boolean
   /** Mode PMR : itinéraires sans escalator ni escalier */
   accessible: boolean
+  /** Onglet Fréquentation : carte de chaleur du niveau (1 px = `cell` m), sans trajet ni position */
+  heat?: { canvas: HTMLCanvasElement; cell: number } | null
 }
 
-// Identité InMap (mêmes valeurs que style.css) : papier, encre chaude, cobalt, tomate
-const SAND = '#e8e2d6'
-const CORRIDOR = '#faf7f1'
-const SHOP = '#ffffff'
-const SHOP_EDGE = '#d6cdbd'
-const INK = '#1d1b16'
-const LABEL = '#3a352c'
-const COBALT = '#2a45e0'
+// Identité InMap (mêmes valeurs que style.css) : lavande, papier crème, encre violine, indigo, tomate
+const SAND = '#cfcaf7'
+const CORRIDOR = '#f1eae0'
+const SHOP = '#fffcf7'
+const INK = '#1e1b33'
+const COBALT = '#3b30d0'
 const TOMATO = '#f0532a'
-const DONE = '#bdb5a6'
+const DONE = '#aaa3c9'
+// Contraste renforcé : contours et libellés à l'encre
+const shopEdge = () => (a11y.contrast ? INK : '#c4bde6')
+const label = () => (a11y.contrast ? '#000' : '#3a3555')
 const FONT = '"Bricolage Grotesque", system-ui, sans-serif'
 
 const FOLLOW_SCALE = 5.5 // px par mètre en mode suivi
 // Zone utile entre le bandeau du haut et le panneau du bas (partagée avec la vue 3D)
-export const TOP = 110, BOTTOM = 230
+export const TOP = 110, BOTTOM = 270
 const PAD = 16
 
 const rgba = (hex: string, a: number) => {
@@ -50,6 +54,7 @@ export class Renderer {
   private cam = { x: 0, y: 0, s: 1 }
   private ready = false
   private promoTags: Map<string, string>
+  private signWidths = new Map<string, number>()
 
   constructor(private canvas: HTMLCanvasElement, private plan: Plan) {
     this.ctx = canvas.getContext('2d')!
@@ -86,7 +91,7 @@ export class Renderer {
       ? { x: this.plan.data.width / 2, y: this.plan.data.height / 2, s: fit }
       : { x: f.estimate.x, y: f.estimate.y, s: Math.max(fit, FOLLOW_SCALE) }
     if (!this.ready) { this.cam = target; this.ready = true; return }
-    const k = 0.08
+    const k = a11y.reduceMotion ? 1 : 0.08
     this.cam.x += (target.x - this.cam.x) * k
     this.cam.y += (target.y - this.cam.y) * k
     this.cam.s += (target.s - this.cam.s) * k
@@ -112,12 +117,17 @@ export class Renderer {
 
     // Boutiques : bloc blanc, logo de l'enseigne et nom
     const dest = f.destination
-    const fontSize = Math.max(9, Math.min(13, s * 2.3))
-    for (const shop of d.shops) this.drawShop(shop, dest?.shop === shop, fontSize)
+    if (f.heat) {
+      ctx.imageSmoothingEnabled = true
+      ctx.drawImage(f.heat.canvas, this.sx(0), this.sy(0), f.heat.canvas.width * f.heat.cell * s, f.heat.canvas.height * f.heat.cell * s)
+    }
+
+    const fontSize = Math.max(9, Math.min(13, s * 2.3)) * (a11y.largeText ? 1.25 : 1)
+    for (const shop of d.shops) this.drawShop(shop, dest?.shop === shop && !f.heat, fontSize)
 
     // Points de recalage QR / NFC
     for (const a of Object.values(this.plan.data.anchors)) {
-      if (a.floor !== f.floor) continue
+      if (a.floor !== f.floor || f.heat) continue
       const x = this.sx(a.x), y = this.sy(a.y)
       ctx.fillStyle = INK
       ctx.fillRect(x - 6, y - 6, 12, 12)
@@ -126,9 +136,9 @@ export class Renderer {
     }
 
     // Itinéraire au niveau affiché : partie restante en cobalt (liseré blanc façon signalétique), parcourue en gris
-    if (f.route) {
+    if (f.route && !f.heat) {
       const { done, todo } = pieces(f.route, f.along, f.floor)
-      const width = Math.max(5, s * 1.3)
+      const width = Math.max(5, s * 1.3) * (a11y.contrast ? 1.3 : 1)
       for (const line of done) this.polyline(line, DONE, width)
       for (const line of todo) this.polyline(line, '#fff', width + 4)
       for (const line of todo) this.polyline(line, COBALT, width)
@@ -155,7 +165,12 @@ export class Renderer {
     // Services : sorties (panneau vert), toilettes, sécurité, accueil…
     for (const a of this.plan.data.amenities) {
       if (a.floor !== f.floor) continue
-      if (a.kind === 'sortie') drawExitSign(ctx, this.sx(a.x), this.sy(a.y), badge)
+      if (a.kind === 'sortie') {
+        // Sortie avec correspondance RER : panneau ancré du côté intérieur du plan pour rester lisible
+        const w = a.rer ? this.signWidth(badge, a.rer) : 0
+        const shift = a.rer ? (a.x < this.plan.data.width / 2 ? w / 2 : -w / 2) : 0
+        drawExitSign(ctx, this.sx(a.x) + shift, this.sy(a.y), badge, a.rer)
+      }
       else drawLogo(ctx, AMENITY_LOGOS[a.kind], this.sx(a.x), this.sy(a.y), badge * 0.9)
     }
 
@@ -165,6 +180,9 @@ export class Renderer {
       const tag = this.promoTags.get(shop.name)
       if (tag) drawPromoTag(ctx, tag, this.sx(shop.x + shop.w) - 2, this.sy(shop.y) + 2, tagH, 'right')
     }
+
+    // Fréquentation : ni destination, ni particules, ni position
+    if (f.heat) return
 
     // Repère de destination (s'il est à ce niveau)
     if (dest && dest.floor === f.floor) {
@@ -239,8 +257,8 @@ export class Renderer {
 
     ctx.fillStyle = isDest ? rgba(TOMATO, 0.1) : SHOP
     ctx.fillRect(x, y, w, h)
-    ctx.strokeStyle = isDest ? TOMATO : SHOP_EDGE
-    ctx.lineWidth = isDest ? 3 : 1
+    ctx.strokeStyle = isDest ? TOMATO : shopEdge()
+    ctx.lineWidth = isDest ? 3 : a11y.contrast ? 1.5 : 1
     ctx.strokeRect(x, y, w, h)
 
     const logo = logoFor(shop)
@@ -251,12 +269,23 @@ export class Renderer {
     const cy = withLabel ? y + h / 2 - fontSize * 0.75 : y + h / 2
     drawLogo(ctx, logo, cx, cy, size)
     if (withLabel) {
-      ctx.fillStyle = isDest ? TOMATO : LABEL
+      ctx.fillStyle = isDest ? TOMATO : label()
       ctx.font = `${isDest ? 800 : 600} ${fontSize}px ${FONT}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       ctx.fillText(shop.name, cx, cy + size / 2 + 5, w - 8)
     }
+  }
+
+  /** Largeur d'un panneau de sortie (mesurée sur un canvas hors écran) */
+  private signWidth(h: number, rer: string[]) {
+    const key = `${h.toFixed(1)}|${rer}`
+    let w = this.signWidths.get(key)
+    if (w == null) {
+      const c = document.createElement('canvas').getContext('2d')!
+      this.signWidths.set(key, (w = drawExitSign(c, 0, 0, h, rer)))
+    }
+    return w
   }
 
   private polyline(pts: Pt[], color: string, width: number) {

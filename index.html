@@ -2,16 +2,19 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#e8e2d6" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#cfcaf7" />
     <title>InMap</title>
   </head>
   <body>
-    <canvas id="map"></canvas>
-    <canvas id="map3d" hidden></canvas>
+    <canvas id="map" role="img" aria-label="Plan du centre commercial"></canvas>
+    <canvas id="map3d" role="img" aria-label="Plan du centre commercial en 3D" hidden></canvas>
+
+    <!-- Consignes de guidage pour les lecteurs d'écran (mises à jour à chaque nouvelle instruction) -->
+    <div id="sr-live" class="sr-only" aria-live="assertive"></div>
 
     <header id="banner" class="top">
-      <div id="nav-icon" class="nav-icon"></div>
+      <div id="nav-icon" class="nav-icon" aria-hidden="true"></div>
       <div class="nav-text">
         <div id="nav-main"></div>
         <div id="nav-sub"></div>
@@ -19,12 +22,20 @@
     </header>
 
     <div class="map-ctrl">
-      <div class="seg seg-view">
-        <button data-view="2d">2D</button>
-        <button data-view="3d" class="on">3D</button>
+      <div class="seg seg-view" role="group" aria-label="Type de vue">
+        <button data-view="2d" aria-pressed="false">2D</button>
+        <button data-view="3d" class="on" aria-pressed="true">3D</button>
       </div>
+      <button id="btn-a11y" class="pmr-toggle" aria-haspopup="dialog" aria-label="Options d'accessibilité">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="7" r="1.4" fill="currentColor" stroke="none" />
+          <path d="M7.5 9.8 12 11l4.5-1.2M12 11v3l-2 4M12 14l2 4" />
+        </svg>
+        Accès
+      </button>
       <button id="btn-pmr" class="pmr-toggle" aria-pressed="false" title="Itinéraires accessibles : ascenseurs uniquement">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="4" r="1.8" fill="currentColor" stroke="none" />
           <path d="M11 7.5v6h5.5l2.5 5.5M11 10.5h5" />
           <path d="M8 10.8a5.6 5.6 0 1 0 7.6 7.4" />
@@ -34,8 +45,8 @@
       <div id="floor-chip" class="floor-chip"></div>
     </div>
 
-    <div id="promo-toast" class="toast" hidden>
-      <canvas width="88" height="88"></canvas>
+    <div id="promo-toast" class="toast" role="button" tabindex="0" aria-live="polite" hidden>
+      <canvas width="88" height="88" aria-hidden="true"></canvas>
       <div class="toast-text">
         <div class="toast-title"></div>
         <div class="toast-sub"></div>
@@ -44,35 +55,60 @@
     </div>
 
     <section class="panel">
-      <button id="btn-search" class="search-pill">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m20 20-4.5-4.5" /></svg>
+      <div class="tabs" role="tablist" aria-label="Affichage">
+        <button role="tab" data-tab="guide" aria-selected="true" class="on">Guidage</button>
+        <button role="tab" data-tab="heat" aria-selected="false">Fréquentation</button>
+      </div>
+
+      <button id="btn-search" class="search-pill guide-only">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m20 20-4.5-4.5" /></svg>
         Boutique, toilettes, sortie…
       </button>
 
-      <div class="row">
-        <div class="seg">
-          <button data-mode="demo" class="on">Démo</button>
-          <button data-mode="real">Réel</button>
+      <div class="row guide-only">
+        <div class="seg" role="group" aria-label="Mode de localisation">
+          <button data-mode="demo" class="on" aria-pressed="true">Démo</button>
+          <button data-mode="real" aria-pressed="false">Réel</button>
         </div>
         <button id="btn-view" class="ghost">Vue d'ensemble</button>
       </div>
 
-      <div id="real-controls" class="row" hidden>
+      <div id="real-controls" class="row guide-only" hidden>
         <button id="btn-sensors" class="primary">Activer le guidage</button>
         <button id="btn-align" class="ghost" title="Tenez le téléphone à plat, orienté vers le haut du plan">Aligner ↑</button>
       </div>
 
-      <div id="stats" class="stats"></div>
-      <div id="hint" class="hint"></div>
+      <div id="stats" class="stats guide-only"></div>
+      <div id="hint" class="hint guide-only"></div>
+
+      <!-- Onglet Fréquentation : carte de chaleur simulée (vue foncière) -->
+      <div id="heat-floors" class="seg heat-only" role="group" aria-label="Niveau affiché"></div>
+      <div class="row heat-only heat-time">
+        <button id="heat-play" class="ghost play" aria-label="Lire la journée">▶</button>
+        <label for="heat-hour" class="sr-only">Heure de la journée</label>
+        <input id="heat-hour" type="range" min="9" max="21" step="0.25" value="15" />
+        <output id="heat-hour-label" for="heat-hour">15 h</output>
+      </div>
+      <div id="heat-kpis" class="kpis heat-only"></div>
+      <div class="legend heat-only" aria-hidden="true"><span>Calme</span><i></i><span>Saturé</span></div>
     </section>
 
-    <section id="search" class="sheet" hidden>
+    <section id="search" class="sheet" role="dialog" aria-modal="true" aria-label="Recherche" hidden>
       <div class="sheet-head">
-        <input id="search-input" type="search" placeholder="Boutique, toilettes, sortie…" autocomplete="off" enterkeyhint="search" />
+        <input id="search-input" type="search" aria-label="Rechercher une boutique ou un service" placeholder="Boutique, toilettes, sortie…" autocomplete="off" enterkeyhint="search" />
         <button id="search-close" class="ghost">Fermer</button>
       </div>
-      <div id="search-chips" class="chips"></div>
+      <div id="search-chips" class="chips" role="group" aria-label="Filtrer par type"></div>
       <ul id="search-results" class="results"></ul>
+    </section>
+
+    <section id="a11y" class="sheet" role="dialog" aria-modal="true" aria-labelledby="a11y-title" hidden>
+      <div class="sheet-head">
+        <h2 id="a11y-title" class="sheet-title">Accessibilité</h2>
+        <button id="a11y-close" class="ghost">Fermer</button>
+      </div>
+      <ul id="a11y-list" class="options"></ul>
+      <p class="hint">Réglages mémorisés sur cet appareil.</p>
     </section>
 
     <script type="module" src="/src/main.ts"></script>

@@ -12,13 +12,14 @@ import { BOTTOM, TOP, type Frame } from './render'
  */
 
 // Identité InMap (mêmes valeurs que style.css / render.ts)
-const SAND = '#e8e2d6'
-const SLAB = '#ddd4c3'
-const CORRIDOR = '#faf7f1'
-const INK = '#1d1b16'
-const COBALT = '#2a45e0'
+const SAND = '#cfcaf7'
+const SLAB = '#b8b1ec'
+const CORRIDOR = '#f1eae0'
+const SHOP = '#fffcf7'
+const INK = '#1e1b33'
+const COBALT = '#3b30d0'
 const TOMATO = '#f0532a'
-const DONE = '#bdb5a6'
+const DONE = '#aaa3c9'
 const FONT = '"Bricolage Grotesque", system-ui, sans-serif'
 
 const GAP = 90 // écart vertical entre niveaux (m), exagéré pour la lisibilité
@@ -85,7 +86,7 @@ export class Renderer3D {
     this.cx = plan.data.width / 2
     this.cz = plan.data.height / 2
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xcfc6b4, 2.4))
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xc4bdea, 2.4))
     const sun = new THREE.DirectionalLight(0xffffff, 1.6)
     sun.position.set(-1, 2.5, 1.5)
     this.scene.add(sun)
@@ -205,7 +206,7 @@ export class Renderer3D {
     }
 
     // Boutiques : volumes blancs à liseré encre, logo et nom sur le toit
-    const sideMat = track(new THREE.MeshLambertMaterial({ color: '#ffffff' }))
+    const sideMat = track(new THREE.MeshLambertMaterial({ color: SHOP }))
     const edgeMat = track(new THREE.LineBasicMaterial({ color: INK, transparent: true, opacity: 0.5 }))
     for (const shop of floor.data.shops) {
       const height = shop.w * shop.h > 1500 ? BIG_H : SHOP_H
@@ -235,9 +236,13 @@ export class Renderer3D {
     }
     for (const a of this.plan.data.amenities) {
       if (a.floor !== floor.index) continue
-      const s = a.kind === 'sortie'
-        ? sprite(this.exitTexture(), 0.06, 0.017)
-        : sprite(this.logoTexture(AMENITY_LOGOS[a.kind]), 0.016, 0.016)
+      let s: THREE.Sprite
+      if (a.kind === 'sortie') {
+        const { map, aspect } = this.exitTexture(a.rer)
+        s = sprite(map, 0.017 * aspect, 0.017)
+        // Panneau RER ancré du côté intérieur du plan
+        if (a.rer) s.center.set(a.x < this.plan.data.width / 2 ? 0 : 1, 0.5)
+      } else s = sprite(this.logoTexture(AMENITY_LOGOS[a.kind]), 0.016, 0.016)
       s.renderOrder = 7
       s.position.copy(this.world(a, y + 3))
       this.scene.add(s)
@@ -317,7 +322,7 @@ export class Renderer3D {
     const clamp = (v: number) => Math.max(32, Math.min(512, Math.round(v * PX_PER_M)))
     const tw = clamp(shop.w), th = clamp(shop.h)
     const { c, g } = canvas2d(tw, th)
-    g.fillStyle = '#ffffff'
+    g.fillStyle = SHOP
     g.fillRect(0, 0, tw, th)
     g.translate(tw / 2, th / 2)
     g.rotate(Math.PI / 2)
@@ -329,7 +334,7 @@ export class Renderer3D {
     const cy = withLabel ? -fs * 0.75 : 0
     drawLogo(g, logoFor(shop), 0, cy, size)
     if (withLabel) {
-      g.fillStyle = '#3a352c'
+      g.fillStyle = '#3a3555'
       g.font = `700 ${fs}px ${FONT}`
       g.textAlign = 'center'
       g.textBaseline = 'top'
@@ -344,10 +349,12 @@ export class Renderer3D {
     return this.texture(c)
   }
 
-  private exitTexture() {
-    const { c, g } = canvas2d(220, 64)
-    drawExitSign(g, 110, 32, 56)
-    return this.texture(c)
+  private exitTexture(rer?: string[]) {
+    const { g: probe } = canvas2d(1, 1)
+    const w = Math.ceil(drawExitSign(probe, 0, 0, 56, rer)) + 8
+    const { c, g } = canvas2d(w, 64)
+    drawExitSign(g, w / 2, 32, 56, rer)
+    return { map: this.texture(c), aspect: w / 64 }
   }
 
   /** Bannière « bon plan » : étiquette jaune et petite pointe vers la vitrine */

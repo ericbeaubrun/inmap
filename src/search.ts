@@ -57,12 +57,14 @@ export function initSearch(plan: Plan, where: () => { pt: Pt; floor: number }, o
   }
   for (const a of plan.data.amenities) {
     const info = AMENITY_INFO[a.kind]
+    const name = a.rer ? `${a.label ?? info.label} · RER ${a.rer.join(', ')}` : a.label ?? info.label
+    const transit = a.rer ? `rer gare train transport ${a.rer.map(l => `rer${l} rer ${l}`).join(' ')}` : ''
     entries.push({
-      name: info.label,
+      name,
       group: 'services',
       logo: AMENITY_LOGOS[a.kind],
-      keywords: norm(`${info.label} ${info.keywords}`),
-      dest: { label: info.label, pt: plan.floors[a.floor].nearestOnAxis(a).pt, floor: a.floor },
+      keywords: norm(`${name} ${info.keywords} ${transit}`),
+      dest: { label: name, pt: plan.floors[a.floor].nearestOnAxis(a).pt, floor: a.floor },
     })
   }
 
@@ -77,6 +79,7 @@ export function initSearch(plan: Plan, where: () => { pt: Pt; floor: number }, o
     b.textContent = g.label
     b.dataset.group = g.id
     b.addEventListener('click', () => { group = g.id; render() })
+    b.setAttribute('aria-pressed', 'false')
     chips.append(b)
   }
 
@@ -104,7 +107,10 @@ export function initSearch(plan: Plan, where: () => { pt: Pt; floor: number }, o
     d.textContent = `${Math.max(5, Math.round(dist / 5) * 5)} m`
     text.append(name, sub)
     li.append(c, text, d)
+    li.tabIndex = 0
+    li.setAttribute('role', 'button')
     li.addEventListener('click', () => { close(); onPick(e.dest) })
+    li.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); li.click() } })
     return li
   }
 
@@ -116,7 +122,10 @@ export function initSearch(plan: Plan, where: () => { pt: Pt; floor: number }, o
   }
 
   function render() {
-    chips.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.classList.toggle('on', b.dataset.group === group))
+    chips.querySelectorAll<HTMLButtonElement>('button').forEach(b => {
+      b.classList.toggle('on', b.dataset.group === group)
+      b.setAttribute('aria-pressed', String(b.dataset.group === group))
+    })
     const words = norm(input.value).split(/\s+/).filter(Boolean)
     const here = where()
     // Distance approximative : à vol d'oiseau + forfait par niveau à changer
@@ -150,6 +159,7 @@ export function initSearch(plan: Plan, where: () => { pt: Pt; floor: number }, o
   }
 
   input.addEventListener('input', render)
+  sheet.addEventListener('keydown', e => { if (e.key === 'Escape') close() })
   document.querySelector('#search-close')!.addEventListener('click', () => close())
 
   function close() {

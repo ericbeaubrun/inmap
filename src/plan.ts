@@ -15,7 +15,14 @@ export interface Connector extends Pt { kind: ConnectorKind; floors: number[] }
 export type AmenityKind = 'sortie' | 'toilettes' | 'securite' | 'accueil' | 'secours' | 'bebe' | 'dab' | 'recharge'
 
 /** Service du centre signalé sur la carte (pictogramme) */
-export interface Amenity extends Pt { kind: AmenityKind; floor: number }
+export interface Amenity extends Pt {
+  kind: AmenityKind
+  floor: number
+  /** Libellé propre (sinon celui de AMENITY_INFO) */
+  label?: string
+  /** Lignes de RER desservies par cette sortie, affichées sur le panneau */
+  rer?: string[]
+}
 
 /** Libellé et mots-clés de recherche des services */
 export const AMENITY_INFO: Record<AmenityKind, { label: string; keywords: string }> = {
@@ -27,6 +34,16 @@ export const AMENITY_INFO: Record<AmenityKind, { label: string; keywords: string
   bebe: { label: 'Espace bébé', keywords: 'bebe change allaitement poussette' },
   dab: { label: 'Distributeur de billets', keywords: 'dab distributeur argent retrait banque' },
   recharge: { label: 'Borne de recharge', keywords: 'recharge voiture electrique borne' },
+}
+
+/** Point chaud de la carte de fréquentation simulée (onglet Fréquentation) */
+export interface HeatSpot extends Pt {
+  floor: number
+  /** Intensité au pic de son profil horaire */
+  w: number
+  /** Rayon d'influence (m) */
+  r: number
+  profile: 'flux' | 'repas' | 'soir' | 'courses' | 'navette'
 }
 
 /** Bon plan d'une enseigne : étiquette courte sur la carte + texte de l'offre flash */
@@ -51,6 +68,8 @@ export interface PlanData {
   connectors: Connector[]
   amenities: Amenity[]
   promos: Promo[]
+  /** Données de démo de l'onglet Fréquentation */
+  heatSpots: HeatSpot[]
   /** Points de recalage (QR / NFC), appelés via ?anchor=<id> ; le premier est le départ par défaut */
   anchors: Record<string, Pt & { label: string; floor: number }>
   /** Trajets enchaînés par la démo : noms de boutiques ou id de points de recalage */
@@ -244,6 +263,7 @@ const mall: PlanData = {
     { kind: 'sortie', x: 70, y: 243.5, floor: 1 },
     { kind: 'sortie', x: 0.5, y: 130, floor: 1 },
     { kind: 'sortie', x: 139.5, y: 80, floor: 1 },
+    { kind: 'sortie', x: 0.5, y: 220, floor: 1, label: 'Sortie Gare', rer: ['A', 'E'] },
     { kind: 'accueil', x: 45, y: 130, floor: 1 },
     { kind: 'toilettes', x: 25, y: 105, floor: 1 },
     { kind: 'toilettes', x: 115, y: 165, floor: 1 },
@@ -275,11 +295,37 @@ const mall: PlanData = {
     'entree-sud': { x: 70, y: 240, label: 'Entrée Sud', floor: 1 },
     'entree-ouest': { x: 4, y: 130, label: 'Entrée Ouest', floor: 1 },
     'entree-est': { x: 136, y: 80, label: 'Entrée Est', floor: 1 },
+    'gare-rer': { x: 4, y: 220, label: 'Sortie Gare · RER A, E', floor: 1 },
   },
+  // Fréquentation simulée d'un samedi : entrées, gare, escalators, grandes surfaces, restauration, loisirs du soir
+  heatSpots: [
+    { floor: 0, x: 136, y: 220, w: 0.9, r: 14, profile: 'flux' },
+    { floor: 0, x: 70, y: 130, w: 0.8, r: 12, profile: 'flux' },
+    { floor: 0, x: 115, y: 220, w: 0.6, r: 10, profile: 'flux' },
+    { floor: 0, x: 70, y: 200, w: 0.5, r: 22, profile: 'courses' },
+    { floor: 1, x: 4, y: 220, w: 1.1, r: 16, profile: 'navette' },
+    { floor: 1, x: 25, y: 220, w: 0.6, r: 14, profile: 'navette' },
+    { floor: 1, x: 70, y: 6, w: 0.8, r: 14, profile: 'flux' },
+    { floor: 1, x: 70, y: 238, w: 0.7, r: 14, profile: 'flux' },
+    { floor: 1, x: 136, y: 80, w: 0.5, r: 12, profile: 'flux' },
+    { floor: 1, x: 70, y: 130, w: 1.0, r: 14, profile: 'flux' },
+    { floor: 1, x: 47, y: 80, w: 0.9, r: 16, profile: 'courses' },
+    { floor: 1, x: 47, y: 30, w: 0.6, r: 14, profile: 'courses' },
+    { floor: 1, x: 70, y: 80, w: 0.7, r: 12, profile: 'flux' },
+    { floor: 1, x: 92, y: 180, w: 0.5, r: 18, profile: 'flux' },
+    { floor: 1, x: 115, y: 130, w: 0.4, r: 18, profile: 'courses' },
+    { floor: 2, x: 25, y: 80, w: 1.1, r: 18, profile: 'repas' },
+    { floor: 2, x: 47, y: 30, w: 0.8, r: 16, profile: 'repas' },
+    { floor: 2, x: 115, y: 80, w: 0.7, r: 16, profile: 'repas' },
+    { floor: 2, x: 92, y: 130, w: 1.0, r: 16, profile: 'soir' },
+    { floor: 2, x: 47, y: 130, w: 0.8, r: 14, profile: 'soir' },
+    { floor: 2, x: 25, y: 175, w: 0.5, r: 16, profile: 'soir' },
+    { floor: 2, x: 70, y: 130, w: 0.7, r: 12, profile: 'flux' },
+  ],
   // Tournée de démo : ascenseur, puis escalators dans les deux sens, retour au parking
   demoTrips: [
     'Cinéma Le Grand Écran', 'Pizza Napoli', 'Jouets & Cie', 'Denim Lab',
-    'Bowling Strike', 'Sushi Zen', 'Hyper Marché Central', 'parking',
+    'Bowling Strike', 'Sushi Zen', 'Hyper Marché Central', 'gare-rer', 'parking',
   ],
 }
 
@@ -296,6 +342,7 @@ const test: PlanData = {
   connectors: [],
   amenities: [],
   promos: [],
+  heatSpots: [],
   anchors: {
     'depart': { x: 2, y: 2, label: 'Départ', floor: 0 },
     'fin': { x: 10, y: 13, label: 'Fin du couloir', floor: 0 },

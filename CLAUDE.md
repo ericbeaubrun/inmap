@@ -22,6 +22,9 @@ Le marché est occupé : **Wemap** (FR, web, positionnement caméra 1–3 m, cli
 - **Itinéraire** : Dijkstra sur le graphe des couloirs de tous les niveaux, construit à la volée (extrémités + croisements + connecteurs + départ/arrivée), avec **pénalité par virage** et coût « virtuel » par connecteur (l'ascenseur inclut l'attente). Les trajets verticaux ont une longueur nulle dans `cum`. Instructions : virages + « Prenez l'ascenseur ↑ Niv. 1 ».
 - **Rendu 2D** : Canvas 2D maison, pas de lib de carte, niveau courant uniquement. Caméra en mode suivi (zoom sur le point) ou vue d'ensemble (affichée 3 s au début de chaque trajet).
 - **Mode PMR** (bouton fauteuil) : `findRoute(..., accessible)` n'emprunte que les ascenseurs ; escalators estompés en 2D/3D, ascenseurs mis en avant, « PMR » dans le bandeau.
+- **Sortie Gare RER** (Niv. 0, ouest de l'allée y = 220, point de recalage `gare-rer`) : une `Amenity` peut porter `label` et `rer` (lignes) ; le panneau « SORTIE » reçoit alors un cartouche bleu nuit « RER (A)(E) ».
+- **Accessibilité** (`a11y.ts`, bouton « Accès ») : PMR, guidage vocal (`speechSynthesis`), vibrations avant virage, contraste renforcé, texte agrandi (`--text`), animations réduites ; mémorisées en `localStorage`, appliquées par classes `a11y-*` sur `<html>`. Les consignes passent aussi par une zone `aria-live`.
+- **Onglet Fréquentation** (`heatmap.ts`) : carte de chaleur simulée d'un samedi (`heatSpots` du plan × profils horaires), vue 2D d'ensemble par niveau, curseur 9 h–21 h avec lecture, indicateurs (visiteurs/h, allées chargées, temps moyen, enseignes les plus fréquentées). Données fictives.
 - **Services** (`amenities` : sorties, toilettes, sécurité, accueil, secours, bébé, DAB, recharge) : pictogrammes de signalétique, panneau vert « SORTIE » ; libellés et mots-clés dans `AMENITY_INFO`.
 - **Bons plans** (`promos`) : étiquette jaune sur la boutique (2D), bannière flottante au-dessus de la vitrine (3D), et **offre flash** (carte « Bon plan » + « Y aller ») quand le visiteur passe à moins de 25 m ; chaque offre une fois par session.
 - **Recherche** (`search.ts`) : enseignes de tous les niveaux + services, filtres par groupe, tri par distance approximative (vol d'oiseau + 40 m par niveau) ; vue d'accueil = service le plus proche de chaque type puis enseignes.
@@ -57,6 +60,8 @@ Piège connu : `filter.init(p, σ, true)` conserve biais et foulée ; sur un fil
 | `src/sim.ts` | Marcheur simulé de la démo (boussole biaisée de 12°, foulée réelle ≠ foulée annoncée, immobile sur escalator/ascenseur) |
 | `src/render.ts` | Rendu 2D canvas du niveau courant : couloirs, boutiques + logos, connecteurs, trajet, destination, particules, point de position, caméra. Exporte `Frame`, `TOP`, `BOTTOM` |
 | `src/render3d.ts` | Rendu 3D Three.js (vue éclatée des niveaux, services, bannières promo), chargé à la demande |
+| `src/heatmap.ts` | Onglet Fréquentation : calcul de la carte de chaleur (grille 1 m, masque des couloirs, dégradé) et indicateurs |
+| `src/a11y.ts` | Options d'accessibilité, feuille de réglages, `announce` (aria-live, voix, vibration) |
 | `src/search.ts` | Feuille de recherche : index des enseignes et services, filtres, liste triée par distance |
 | `src/logos.ts` | Logos des enseignes fictives, pictogrammes des connecteurs et services (forme + couleurs + monogramme ou pictogramme SVG en `Path2D`), `logoFor`, panneau « SORTIE », étiquette promo |
 | `src/style.css` | Styles de l'interface (bandeau, panneau, bascule 2D/3D, pastille de niveau) |
@@ -66,7 +71,7 @@ Repère des plans : mètres, x vers la droite, **y vers le bas** ; cap 0 = haut 
 ## Identité visuelle
 
 Style **signalétique / éditorial, clair, contrasté, non futuriste** (le style néon sombre a été rejeté).
-- Couleurs : papier `#faf7f1`, sable `#e8e2d6`, encre `#1d1b16`, **cobalt `#2a45e0`** (trajet, position, marque), **tomate `#f0532a`** (destination). Elles sont dupliquées entre `style.css` (variables CSS), `render.ts` et `render3d.ts` (constantes) : modifier les trois.
+- Couleurs : fond **lavande `#cfcaf7`**, papier **crème `#f1eae0`** (couloirs, panneaux), encre `#1e1b33`, **indigo `#3b30d0`** (variable `--cobalt` : trajet, position, marque), **tomate `#f0532a`** (destination). Elles sont dupliquées entre `style.css` (variables CSS), `render.ts` et `render3d.ts` (constantes) : modifier les trois.
 - Cartes UI : contour encre 2 px + ombre décalée pleine (`4px 4px 0`).
 - Polices embarquées : **Bricolage Grotesque** (UI, monogrammes) et **DM Serif Display** (monogrammes « premium »). Préchargées dans `main.ts` car le canvas ne déclenche pas leur chargement.
 - Toutes les enseignes et leurs logos sont **fictifs** : ne jamais reproduire de vraie marque.
@@ -79,4 +84,4 @@ Style **signalétique / éditorial, clair, contrasté, non futuriste** (le style
 
 ## Pistes non réalisées
 
-Vue « Orientation » en AR légère (caméra + flèche), affluence simulée, mémorisation de la place de parking, tableau de bord foncière, déploiement Vercel pour test HTTPS.
+Vue « Orientation » en AR légère (caméra + flèche), affluence par boutique dans la recherche, mémorisation de la place de parking, tableau de bord foncière complet (au-delà de l'onglet Fréquentation), déploiement Vercel pour test HTTPS.

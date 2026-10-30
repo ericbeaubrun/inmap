@@ -154,23 +154,63 @@ export const AMENITY_LOGOS: Record<AmenityKind, Logo> = {
   recharge: { bg: EXIT_GREEN, fg: '#fff', shape: 'circle', icon: 'bolt' },
 }
 
-/** Panneau « SORTIE » vert (pictogramme + texte), centré en (cx, cy), de hauteur h px. Renvoie sa largeur. */
-export function drawExitSign(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number) {
+// Couleurs usuelles des lignes de RER (information voyageurs)
+const RER_COLORS: Record<string, [string, string]> = {
+  A: ['#e3051c', '#fff'], B: ['#5291ce', '#fff'], C: ['#ffcd00', '#1e1b33'], D: ['#00814f', '#fff'], E: ['#c04191', '#fff'],
+}
+const TRANSIT_NAVY = '#1e2a5a'
+
+/**
+ * Panneau « SORTIE » vert (pictogramme + texte), centré en (cx, cy), de hauteur h px. Renvoie sa largeur.
+ * Avec `rer`, un cartouche bleu nuit « RER » suivi des lignes desservies est accolé à droite.
+ */
+export function drawExitSign(ctx: CanvasRenderingContext2D, cx: number, cy: number, h: number, rer: string[] = []) {
   ctx.font = `800 ${h * 0.5}px "Bricolage Grotesque", system-ui, sans-serif`
-  const w = h * 0.95 + ctx.measureText('SORTIE').width + h * 0.35
+  const wExit = h * 0.95 + ctx.measureText('SORTIE').width + h * 0.35
+  const wRer = rer.length ? h * 0.3 + ctx.measureText('RER').width + rer.length * h * 0.78 + h * 0.15 : 0
+  const w = wExit + wRer
   const x = cx - w / 2, y = cy - h / 2
-  ctx.fillStyle = EXIT_GREEN
-  ctx.strokeStyle = '#fff'
   ctx.lineWidth = Math.max(1.5, h * 0.08)
+  ctx.strokeStyle = '#fff'
+  if (wRer) {
+    ctx.fillStyle = TRANSIT_NAVY
+    ctx.beginPath()
+    ctx.roundRect(x, y, w, h, h * 0.18)
+    ctx.fill()
+  }
+  ctx.fillStyle = EXIT_GREEN
+  ctx.beginPath()
+  ctx.roundRect(x, y, wExit, h, wRer ? [h * 0.18, 0, 0, h * 0.18] : h * 0.18)
+  ctx.fill()
   ctx.beginPath()
   ctx.roundRect(x, y, w, h, h * 0.18)
-  ctx.fill()
   ctx.stroke()
   drawLogo(ctx, AMENITY_LOGOS.sortie, x + h * 0.52, cy, h * 0.8)
   ctx.fillStyle = '#fff'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
   ctx.fillText('SORTIE', x + h * 0.95, cy + h * 0.03)
+  if (wRer) {
+    let lx = x + wExit + h * 0.3
+    ctx.fillText('RER', lx, cy + h * 0.03)
+    lx += ctx.measureText('RER').width + h * 0.15
+    ctx.font = `800 ${h * 0.42}px "Bricolage Grotesque", system-ui, sans-serif`
+    ctx.textAlign = 'center'
+    for (const line of rer) {
+      const [bg, fg] = RER_COLORS[line] ?? ['#fff', TRANSIT_NAVY]
+      const r = h * 0.32
+      ctx.fillStyle = bg
+      ctx.beginPath()
+      ctx.arc(lx + h * 0.39, cy, r, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = Math.max(1, h * 0.05)
+      ctx.stroke()
+      ctx.fillStyle = fg
+      ctx.fillText(line, lx + h * 0.39, cy + h * 0.03)
+      lx += h * 0.78
+    }
+  }
   return w
 }
 
